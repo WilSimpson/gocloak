@@ -23,7 +23,7 @@ type KeycloakClient interface {
 	LogoutAllSessions(ctx context.Context, accessToken, realm, userID string) error
 	RevokeUserConsents(ctx context.Context, accessToken, realm, userID, clientID string) error
 	LogoutUserSession(ctx context.Context, accessToken, realm, session string) error
-	LoginClient(ctx context.Context, clientID, clientSecret, realm string) (*JWT, error)
+	LoginClient(ctx context.Context, clientID, clientSecret, realm string, scopes ...string) (*JWT, error)
 	LoginClientSignedJWT(ctx context.Context, clientID, realm string, key interface{}, signedMethod jwt.SigningMethod, expiresAt *jwt.NumericDate) (*JWT, error)
 	LoginAdmin(ctx context.Context, username, password, realm string) (*JWT, error)
 	RefreshToken(ctx context.Context, refreshToken, clientID, clientSecret, realm string) (*JWT, error)
@@ -32,7 +32,7 @@ type KeycloakClient interface {
 	RetrospectToken(ctx context.Context, accessToken, clientID, clientSecret, realm string) (*IntroSpectTokenResult, error)
 	GetIssuer(ctx context.Context, realm string) (*IssuerResponse, error)
 	GetCerts(ctx context.Context, realm string) (*CertResponse, error)
-	GetServerInfo(ctx context.Context, accessToken string) ([]*ServerInfoRepresentation, error)
+	GetServerInfo(ctx context.Context, accessToken string) (*ServerInfoRepresentation, error)
 	GetUserInfo(ctx context.Context, accessToken, realm string) (*UserInfo, error)
 	GetRawUserInfo(ctx context.Context, accessToken, realm string) (map[string]interface{}, error)
 	SetPassword(ctx context.Context, token, userID, realm, password string, temporary bool) error
@@ -168,8 +168,8 @@ type KeycloakClient interface {
 	ClearUserCache(ctx context.Context, token, realm string) error
 	ClearKeysCache(ctx context.Context, token, realm string) error
 
-	GetClientUserSessions(ctx context.Context, token, realm, idOfClient string) ([]*UserSessionRepresentation, error)
-	GetClientOfflineSessions(ctx context.Context, token, realm, idOfClient string) ([]*UserSessionRepresentation, error)
+	GetClientUserSessions(ctx context.Context, token, realm, idOfClient string, params ...GetClientUserSessionsParams) ([]*UserSessionRepresentation, error)
+	GetClientOfflineSessions(ctx context.Context, token, realm, idOfClient string, params ...GetClientUserSessionsParams) ([]*UserSessionRepresentation, error)
 	GetUserSessions(ctx context.Context, token, realm, userID string) ([]*UserSessionRepresentation, error)
 	GetUserOfflineSessionsForClient(ctx context.Context, token, realm, userID, idOfClient string) ([]*UserSessionRepresentation, error)
 
