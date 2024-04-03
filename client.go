@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
 
@@ -27,6 +26,7 @@ type GoCloak struct {
 	certsCache  sync.Map
 	certsLock   sync.Mutex
 	restyClient *resty.Client
+	middlewares []Middleware
 	Config      struct {
 		CertsInvalidateTime time.Duration
 		authAdminRealms     string
@@ -48,14 +48,17 @@ func makeURL(path ...string) string {
 	return strings.Join(path, urlSeparator)
 }
 
-// GetRequest returns a request for calling endpoints.
+// GetRequest returns a request for calling endpoints and calls all registered middlewares.
 func (g *GoCloak) GetRequest(ctx context.Context) *resty.Request {
+	req := g.restyClient.R()
+	for _, middleware := range g.middlewares {
+		ctx = middleware(ctx, req)
+	}
+
 	var err HTTPErrorResponse
-	return injectTracingHeaders(
-		ctx, g.restyClient.R().
-			SetContext(ctx).
-			SetError(&err),
-	)
+	return req.
+		SetContext(ctx).
+		SetError(&err)
 }
 
 // GetRequestWithBearerAuthNoCache returns a JSON base request configured with an auth token and no-cache header.
@@ -153,28 +156,6 @@ func findUsedKey(usedKeyID string, keys []CertResponseKey) *CertResponseKey {
 	return nil
 }
 
-func injectTracingHeaders(ctx context.Context, req *resty.Request) *resty.Request {
-	// look for span in context, do nothing if span is not found
-	span := opentracing.SpanFromContext(ctx)
-	if span == nil {
-		return req
-	}
-
-	// look for tracer in context, use global tracer if not found
-	tracer, ok := ctx.Value(tracerContextKey).(opentracing.Tracer)
-	if !ok || tracer == nil {
-		tracer = opentracing.GlobalTracer()
-	}
-
-	// inject tracing header into request
-	err := tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
-	if err != nil {
-		return req
-	}
-
-	return req
-}
-
 // ===============
 // Keycloak client
 // ===============
@@ -198,6 +179,9 @@ func NewClient(basePath string, options ...func(*GoCloak)) *GoCloak {
 	for _, option := range options {
 		option(&c)
 	}
+
+	// Backwards compatibility with v13.9.0
+	c.RegisterMiddlewares(OpenTracingMiddleware)
 
 	return &c
 }
