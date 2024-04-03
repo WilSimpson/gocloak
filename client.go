@@ -161,7 +161,7 @@ func findUsedKey(usedKeyID string, keys []CertResponseKey) *CertResponseKey {
 // ===============
 
 // NewClient creates a new Client
-func NewClient(basePath string, options ...func(*GoCloak)) KeycloakClient {
+func NewClient(basePath string, options ...func(*GoCloak)) *GoCloak {
 	c := GoCloak{
 		basePath:    strings.TrimRight(basePath, urlSeparator),
 		restyClient: resty.New(),
